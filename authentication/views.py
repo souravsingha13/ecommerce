@@ -25,4 +25,9 @@ class LoginView(APIView):
             return Response("Successfully logged in", status=status.HTTP_200_OK)
         else:
             return Response({"error": "Wrong Credentials"}, status=status.HTTP_400_BAD_REQUEST)
+
+class LogOutView(APIView):
+    def post(self,request):
+        logout(request)
+        return Response({'msg': 'Successfully Logged out'}, status=status.HTTP_200_OK)
         
