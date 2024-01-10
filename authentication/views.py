@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.response import  Response
 from rest_framework import status
 from rest_framework.views import APIView
-from .serializers import RegistrationSerializer
+from .serializers import RegistrationSerializer, PasswordChangeSerializer
 
 class RegistrationView(APIView):
     def post(self,request):
@@ -30,4 +30,11 @@ class LogOutView(APIView):
     def post(self,request):
         logout(request)
         return Response({'msg': 'Successfully Logged out'}, status=status.HTTP_200_OK)
-        
+
+class ChangePasswordView(APIView):
+    def post(self,request):
+        serializer = PasswordChangeSerializer(context = {'request':request}, data = request.data)
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
