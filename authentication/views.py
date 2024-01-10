@@ -4,6 +4,16 @@ from rest_framework.response import  Response
 from rest_framework import status
 from rest_framework.views import APIView
 from .serializers import RegistrationSerializer, PasswordChangeSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
+
 
 class RegistrationView(APIView):
     def post(self,request):
@@ -22,7 +32,8 @@ class LoginView(APIView):
         if user is not None:
             print(user)
             login(request, user)
-            return Response("Successfully logged in", status=status.HTTP_200_OK)
+            auth_data = get_tokens_for_user(request.user)
+            return Response({"message":"Successfully logged in",**auth_data},status=status.HTTP_200_OK)
         else:
             return Response({"error": "Wrong Credentials"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -33,8 +44,12 @@ class LogOutView(APIView):
 
 class ChangePasswordView(APIView):
     def post(self,request):
+        print(request.user)
         serializer = PasswordChangeSerializer(context = {'request':request}, data = request.data)
+        print(serializer)
         serializer.is_valid(raise_exception=True)
+        print("after called is valid")
+        print(serializer.is_valid(raise_exception=True))
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response("Successfully change password",status=status.HTTP_204_NO_CONTENT)

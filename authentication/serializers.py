@@ -22,11 +22,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
         print(user.email)
         return user
 
-class PasswordChangeSerializer(serializers.ModelSerializer):
+class PasswordChangeSerializer(serializers.Serializer):
     current_password = serializers.CharField(style={"input_type": "password"}, write_only=True)
     new_password = serializers.CharField(style={"input_type": "password"}, write_only=True)
+    print(current_password,new_password)
     
     def validate_current_password(self, value):
+        print("validate_current_password")
+        print(self.context['request'].user)
         if not self.context['request'].user.check_password(value):
             raise serializers.ValidationError({'current_password': 'Does not match'})
         return value
