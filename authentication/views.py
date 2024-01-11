@@ -57,3 +57,5 @@ class ChangePasswordView(APIView):
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response({"message" : "Successfully change password"},status=status.HTTP_204_NO_CONTENT)
+
+
