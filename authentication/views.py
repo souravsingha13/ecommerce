@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from .serializers import RegistrationSerializer, PasswordChangeSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from .utils import send_mail_to_client
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -20,6 +21,7 @@ class RegistrationView(APIView):
         serializers = RegistrationSerializer(data=request.data)
         print(serializers)
         if serializers.is_valid():
+            send_mail_to_client()
             serializers.save()
             return Response(serializers.data, status=status.HTTP_201_CREATED)
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -52,4 +54,4 @@ class ChangePasswordView(APIView):
         print(serializer.is_valid(raise_exception=True))
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
-        return Response("Successfully change password",status=status.HTTP_204_NO_CONTENT)
+        return Response({"message" : "Successfully change password"},status=status.HTTP_204_NO_CONTENT)
