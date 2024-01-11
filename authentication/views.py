@@ -6,6 +6,8 @@ from rest_framework.views import APIView
 from .serializers import RegistrationSerializer, PasswordChangeSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import send_mail_to_client
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -21,7 +23,7 @@ class RegistrationView(APIView):
         serializers = RegistrationSerializer(data=request.data)
         print(serializers)
         if serializers.is_valid():
-            send_mail_to_client()
+            send_mail_to_client(request.user)
             serializers.save()
             return Response(serializers.data, status=status.HTTP_201_CREATED)
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
