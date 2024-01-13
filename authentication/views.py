@@ -6,8 +6,11 @@ from .serializers import RegistrationSerializer, PasswordChangeSerializer
 from .models import User
 from django.conf import settings
 import jwt
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.shortcuts import redirect
-from .utils import get_tokens_for_user, link_generator, send_email_to_client
+from .utils import get_tokens_for_user, link_generator, send_email_to_client, password_reset_token_generator
+from django.utils.encoding import smart_str, smart_bytes, DjangoUnicodeDecodeError
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 
 
 
@@ -65,5 +68,24 @@ class ChangePasswordView(APIView):
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response({"message" : "Successfully change password"},status=status.HTTP_204_NO_CONTENT)
+    
+class PasswordResetView(APIView):
+    def post(self, request):
+        user_email = request.data.get('email')
+        user = User.objects.filter(email = user_email)
+        if user.exists():
+            user = User.objects.get(email = user_email)
+            absurl = password_reset_token_generator(self,request, user)
+            send_email_to_client(user,absurl)
+        return Response({"success": "We have sent you a link to reset your password"}, status=status.HTTP_200_OK)
 
 
+class PasswordTokenCheckView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            id = smart_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(id = id)
+            if PasswordResetTokenGenerator().check_token(user,token): 
+                print("jsf") 
+        except DjangoUnicodeDecodeError as identifier:
+            return Response({"message":"this is from PasswordTokenCheckView"})
