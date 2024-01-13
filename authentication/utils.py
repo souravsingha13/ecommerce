@@ -1,21 +1,27 @@
-from django.core.mail import send_mail,EmailMessage
-from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.sites.shortcuts import get_current_site
 from django.urls import reverse
+from django.conf import settings
+from django.core.mail import send_mail
 
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
 
-def send_mail_to_client():
-    subject = "Email verification"
-    message = "This is a test email"
-    from_email = settings.EMAIL_HOST_USER
-    recipient_list = ["souravsingha.one.direction@gmail.com"]
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
     
-    send_mail(subject, message, from_email, recipient_list)
-    
-def send_activation_email(user):
-    subject = "Email verification"
-    activation_link = reverse('activate_user', kwargs={'uidb64': user.pk, 'token': user.activation_token})
-    message = f"Please click the following link to activate your account:\n{activation_link}"
-    from_email = settings.EMAIL_HOST_USER
-    recipient_list = [user.email]  # Use the user's email address
+def link_generator(request,user):
+    token = RefreshToken.for_user(user)
+    current_site = get_current_site(request).domain
+    relativeLink = reverse('email-verify')
+    absurl = 'http://'+current_site+relativeLink+"?token="+str(token)
+    return absurl
 
+def send_email_to_client(user,absurl):
+    subject = "Email verification"
+    message = absurl
+    from_email = settings.EMAIL_HOST_USER
+    recipient_list = [user.email]
     send_mail(subject, message, from_email, recipient_list)

@@ -1,32 +1,44 @@
-from django.shortcuts import render
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.response import  Response
 from rest_framework import status
 from rest_framework.views import APIView
 from .serializers import RegistrationSerializer, PasswordChangeSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
-from .utils import send_mail_to_client
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from .models import User
+from django.conf import settings
+import jwt
+from django.shortcuts import redirect
+from .utils import get_tokens_for_user, link_generator, send_email_to_client
 
 
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-
-    return {
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-    }
 
 
 class RegistrationView(APIView):
     def post(self,request):
         serializers = RegistrationSerializer(data=request.data)
-        print(serializers)
         if serializers.is_valid():
-            send_mail_to_client(request.user)
             serializers.save()
-            return Response(serializers.data, status=status.HTTP_201_CREATED)
+            user_data = serializers.data
+            user = User.objects.get(email = user_data['email'])
+            absurl = link_generator(request, user)
+            send_email_to_client(user, absurl)
+            return Response({"message":f"Go to this emali {serializers.data} to verify"}, status=status.HTTP_201_CREATED)
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class VerifyEmail(APIView):
+    def get(self, request):
+        token = request.GET.get('token')
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            user = User.objects.get(id = payload["user_id"])
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+            return redirect("http://localhost:8000/user/login")
+        except jwt.ExpiredSignatureError as identifier:
+            return Response({'error': 'Activation Expired'}, status=status.HTTP_400_BAD_REQUEST)
+        except jwt.exceptions.DecodeError as identifier:
+            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+        
 
 class LoginView(APIView):
     def post(self,request, format = None):
@@ -48,12 +60,8 @@ class LogOutView(APIView):
 
 class ChangePasswordView(APIView):
     def post(self,request):
-        print(request.user)
         serializer = PasswordChangeSerializer(context = {'request':request}, data = request.data)
-        print(serializer)
         serializer.is_valid(raise_exception=True)
-        print("after called is valid")
-        print(serializer.is_valid(raise_exception=True))
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response({"message" : "Successfully change password"},status=status.HTTP_204_NO_CONTENT)
