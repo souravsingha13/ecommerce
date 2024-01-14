@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.response import  Response
 from rest_framework import status
 from rest_framework.views import APIView
-from .serializers import RegistrationSerializer, PasswordChangeSerializer
+from .serializers import RegistrationSerializer, PasswordChangeSerializer, UserPasswordResetSerializer
 from .models import User
 from django.conf import settings
 import jwt
@@ -81,11 +81,24 @@ class PasswordResetView(APIView):
 
 
 class PasswordTokenCheckView(APIView):
-    def get(self, request, uidb64, token):
+    def post(self, request, uidb64, token):
         try:
             id = smart_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(id = id)
-            if PasswordResetTokenGenerator().check_token(user,token): 
-                print("jsf") 
-        except DjangoUnicodeDecodeError as identifier:
-            return Response({"message":"this is from PasswordTokenCheckView"})
+            user = User.objects.get(id=id)
+
+            if PasswordResetTokenGenerator().check_token(user, token):
+                serializer = UserPasswordResetSerializer(context = {'request':request},data=request.data)
+                serializer.is_valid(raise_exception=True)
+
+                user.set_password(serializer.validated_data['password'])
+                user.save()
+
+                return Response({"message": "Password reset successful"})
+
+        except (DjangoUnicodeDecodeError, User.DoesNotExist):
+            if isinstance(e, DjangoUnicodeDecodeError):
+                return Response({"message": "Invalid token encoding"}, status=status.HTTP_400_BAD_REQUEST)
+            elif isinstance(e, User.DoesNotExist):
+                return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"message": "Invalid token or user ID"}, status=status.HTTP_400_BAD_REQUEST)

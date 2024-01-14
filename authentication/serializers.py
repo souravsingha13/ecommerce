@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from .models import User
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import smart_str, smart_bytes, DjangoUnicodeDecodeError
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -32,3 +35,19 @@ class PasswordChangeSerializer(serializers.Serializer):
         if not self.context['request'].user.check_password(value):
             raise serializers.ValidationError({'current_password': 'Does not match'})
         return value
+
+class UserPasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(max_length = 255, style = {'input_type' : 'password'}, write_only = True)
+    password2 = serializers.CharField(max_length = 255, style = {'input_type' : 'password'}, write_only = True)
+
+    class Meta:
+        fields = ['password', 'password2']
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        password2 = attrs.get('password2')
+
+        if password != password2:
+            raise serializers.ValidationError("password and confirm password doesn't match")
+
+        return attrs
